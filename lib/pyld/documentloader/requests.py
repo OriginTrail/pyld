@@ -17,19 +17,18 @@ from json import JSONDecodeError
 from pyld.jsonld import (JsonLdError, parse_link_header, prepend_base, LINK_HEADER_REL)
 
 
-def requests_document_loader(secure=False, max_link_follows=2, **kwargs):
+def requests_document_loader(secure=False, **kwargs):
     """
     Create a Requests document loader.
     Can be used to setup extra Requests args such as verify, cert, timeout,
     or others.
     :param secure: require all requests to use HTTPS (default: False).
-    :param max_link_follows: Maximum number of alternate link follows allowed.
     :param **kwargs: extra keyword args for Requests get() call.
     :return: the RemoteDocument loader function.
     """
     import requests
 
-    def loader(url, options={}, link_follow_count=0):
+    def loader(url, options={}):
         """
         Retrieves JSON-LD at the given URL.
         :param url: the URL to retrieve.
@@ -69,8 +68,6 @@ def requests_document_loader(secure=False, max_link_follows=2, **kwargs):
                 'documentUrl': response.url,
                 'document': None
             }
-            # Try loading the JSON if the content_type matches
-            # A failure here means the response body is not valid json
             if re.match(r'^application\/(\w*\+)?json$', content_type):
                 doc['document'] = response.json()
             # if content_type in headers['Accept']:
@@ -97,9 +94,7 @@ def requests_document_loader(secure=False, max_link_follows=2, **kwargs):
                         not re.match(r'^application\/(\w*\+)?json$', content_type)):
                     doc['contentType'] = 'application/ld+json'
                     doc['documentUrl'] = prepend_base(url, linked_alternate['target'])
-                    if link_follow_count >= max_link_follows:
-                        raise requests.TooManyRedirects(f"Exceeded maximum link header redirects ({max_link_follows})")
-                    return loader(doc['documentUrl'], options=options, link_follow_count=link_follow_count + 1)
+                    return loader(doc['documentUrl'], options=options)
             return doc
         except JsonLdError as e:
             raise e
