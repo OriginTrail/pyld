@@ -66,12 +66,8 @@ def requests_document_loader(secure=False, **kwargs):
                 'contentType': content_type,
                 'contextUrl': None,
                 'documentUrl': response.url,
-                'document': None
+                'document': None    #document is parsed later
             }
-            if re.match(r'^application\/(\w*\+)?json$', content_type):
-                doc['document'] = response.json()
-            # if content_type in headers['Accept']:
-            #    doc['document'] = response.json()
             link_header = response.headers.get('link')
             if link_header:
                 linked_context = parse_link_header(link_header).get(
@@ -94,7 +90,10 @@ def requests_document_loader(secure=False, **kwargs):
                         not re.match(r'^application\/(\w*\+)?json$', content_type)):
                     doc['contentType'] = 'application/ld+json'
                     doc['documentUrl'] = prepend_base(url, linked_alternate['target'])
+                    # recurse into loader with the new URL
                     return loader(doc['documentUrl'], options=options)
+            # parse the json response and return
+            doc['document'] = response.json()
             return doc
         except JsonLdError as e:
             raise e
