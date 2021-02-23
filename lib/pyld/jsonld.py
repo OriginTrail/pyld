@@ -621,9 +621,10 @@ def parse_url(url):
     m = re.match(p, url)
     # remove default http and https ports
     g = list(m.groups())
-    if ((g[0] == 'https' and g[1].endswith(':443')) or
-            (g[0] == 'http' and g[1].endswith(':80'))):
-        g[1] = g[1][:g[1].rfind(':')]
+    if g[1] is not None:
+        if ((g[0] == 'https' and g[1].endswith(':443')) or
+                (g[0] == 'http' and g[1].endswith(':80'))):
+            g[1] = g[1][:g[1].rfind(':')]
     return ParsedUrl(*g)
 
 
