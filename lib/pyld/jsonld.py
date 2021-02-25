@@ -3664,6 +3664,9 @@ class JsonLdProcessor(object):
                 object['datatype'] = datatype or XSD_BOOLEAN
             elif _is_double(value) or datatype == XSD_DOUBLE:
                 # canonical double representation
+                if isinstance(value, str):
+                    # e.g. {"@value":"2.0E0","@type":"http://www.w3.org/2001/XMLSchema#double"}
+                    value=float(value)
                 object['value'] = re.sub(
                     r'(\d)0*E\+?0*(\d)', r'\1E\2',
                     ('%1.15E' % value))
