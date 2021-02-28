@@ -6599,9 +6599,7 @@ def load_document(url,
 
     if 'headers' not in options:
         options['headers'] = headers
-    #Use the registerd document loader is not provided in options.
-    _loader = options.get('documentLoader', get_document_loader())
-    remote_doc = _loader(url, options)
+    remote_doc = options['documentLoader'](url, options)
     if base:
         remote_doc['documentUrl'] = base
 
@@ -6612,7 +6610,7 @@ def load_document(url,
             code='loading document failed')
     elif _is_string(remote_doc['document']):
         try:
-            _content_type = _parse_content_type(remote_doc.get('content', ''))
+            _content_type = _parse_content_type(remote_doc.get('contentType', ''))
             if (_content_type['contentType'] == 'text/html' or
                 _content_type['contentType'] == 'application/xhtml+xml'):
                 # extract JSON from HTML
