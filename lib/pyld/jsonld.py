@@ -6555,6 +6555,18 @@ except ImportError:
     except (ImportError, SyntaxError):
         _default_document_loader = dummy_document_loader()
 
+
+#TODO: this should be a utility operation
+def _parse_content_type(ctype) {
+    parts = ctype.split(";")
+    res = {"contentType": parts[0]}
+    for apart in parts[1:]:
+        a,b = part.split("=", 1)
+        res[a] = b
+    return res
+}
+
+
 def load_document(url,
     options,
     base=None,
@@ -6597,8 +6609,9 @@ def load_document(url,
             code='loading document failed')
     elif _is_string(remote_doc['document']):
         try:
-            if (remote_doc['contentType'] == 'text/html' or
-                remote_doc['contentType'] == 'application/xhtml+xml'):
+            _content_type = _parse_content_type(remote_doc.get('content', ''))
+            if (_content_type['contentType'] == 'text/html' or
+                _content_type['contentType'] == 'application/xhtml+xml'):
                 # extract JSON from HTML
                 html_options = options.copy()
                 remote_doc['document'] = load_html(remote_doc['document'],
@@ -6622,6 +6635,7 @@ def load_document(url,
                 cause=cause)
 
     return remote_doc
+
 
 def load_html(input, url, profile, options):
     """
