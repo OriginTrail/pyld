@@ -6558,10 +6558,13 @@ except ImportError:
 
 #TODO: this should be a utility operation
 def _parse_content_type(ctype):
+    res = {}
     parts = ctype.split(";")
-    res = {"contentType": parts[0]}
+    if len(parts) < 1:
+        return res
+    res["contentType"] = parts[0]
     for apart in parts[1:]:
-        a,b = part.split("=", 1)
+        a,b = apart.strip().split("=", 1)
         res[a] = b
     return res
 
