@@ -6557,14 +6557,14 @@ except ImportError:
 
 
 #TODO: this should be a utility operation
-def _parse_content_type(ctype) {
+def _parse_content_type(ctype):
     parts = ctype.split(";")
     res = {"contentType": parts[0]}
     for apart in parts[1:]:
         a,b = part.split("=", 1)
         res[a] = b
     return res
-}
+
 
 
 def load_document(url,
