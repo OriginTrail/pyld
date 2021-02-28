@@ -6584,7 +6584,9 @@ def load_document(url,
 
     if 'headers' not in options:
         options['headers'] = headers
-    remote_doc = options['documentLoader'](url, options)
+    #Use the registerd document loader is not provided in options.
+    _loader = options.get('documentLoader', get_document_loader())
+    remote_doc = _loader(url, options)
     if base:
         remote_doc['documentUrl'] = base
 

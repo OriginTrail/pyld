@@ -66,7 +66,8 @@ def requests_document_loader(secure=False, **kwargs):
                 'contentType': content_type,
                 'contextUrl': None,
                 'documentUrl': response.url,
-                'document': None    #document is parsed later
+                'document': None,    #document is parsed later
+                'response': None,    #Include the response for history/performance review
             }
             link_header = response.headers.get('link')
             if link_header:
@@ -93,7 +94,11 @@ def requests_document_loader(secure=False, **kwargs):
                     # recurse into loader with the new URL
                     return loader(doc['documentUrl'], options=options)
             # parse the json response and return
-            doc['document'] = response.json()
+            # Do not parse JSON here. It needs to be done in load_document to handle the
+            # situation where JSON-LD needs to be extracted from a HTML response.
+            #doc['document'] = response.json()
+            doc['document'] = response.text
+            doc['response'] = response
             return doc
         except JsonLdError as e:
             raise e
