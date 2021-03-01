@@ -6599,6 +6599,9 @@ def load_document(url,
 
     if 'headers' not in options:
         options['headers'] = headers
+    #Add profile to options for the loader to check on
+    if 'profile' not in options:
+        options['profile']=profile
     remote_doc = options['documentLoader'](url, options)
     if base:
         remote_doc['documentUrl'] = base

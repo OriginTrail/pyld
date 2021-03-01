@@ -85,12 +85,31 @@ def requests_document_loader(secure=False, **kwargs):
                             code='multiple context link headers')
                     doc['contextUrl'] = linked_context['target']
                 linked_alternate = parse_link_header(link_header).get('alternate')
+                # Linked alternate may be a list....
+                # A. type == application/ld+json, no profile
+                # OR
+                # B. type == application/ld+json, profile == supplied profile                    
                 # if not JSON-LD, alternate may point there
-                if (linked_alternate and
-                        linked_alternate.get('type') == 'application/ld+json' and
+                the_linked_alternate = None
+                if linked_alternate:
+                    _profile = options.get("profile", None)
+                    if isinstance(linked_alternate, list):
+                        for candidate in linked_alternate:
+                            if candidate.get('type') == 'application/ld+json':
+                                if _profile is not None:
+                                    if candidate.get('profile') == _profile:
+                                        the_linked_alternate = candidate
+                                        break
+                                else:
+                                    the_linked_alternate = candidate
+                                    break
+                    else:
+                        the_linked_alternate = linked_alternate
+                if (the_linked_alternate and
+                        the_linked_alternate.get('type') == 'application/ld+json' and
                         not re.match(r'^application\/(\w*\+)?json$', content_type)):
                     doc['contentType'] = 'application/ld+json'
-                    doc['documentUrl'] = prepend_base(url, linked_alternate['target'])
+                    doc['documentUrl'] = prepend_base(url, the_linked_alternate['target'])
                     # recurse into loader with the new URL
                     return loader(doc['documentUrl'], options=options)
             # parse the json response and return
