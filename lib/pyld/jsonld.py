@@ -6608,7 +6608,7 @@ def load_document(url,
 
     if remote_doc['document'] is None:
         raise JsonLdError(
-            'No remote document found at the given URL.',
+            'No remote document found at the given URL: '+url,
             'jsonld.NullRemoteDocument',
             code='loading document failed')
     elif _is_string(remote_doc['document']):
@@ -6628,7 +6628,7 @@ def load_document(url,
                     options['base'] = html_options['base']
             else:
                 # parse JSON
-                remote_doc['document'] = json.loads(remote_doc['document'])
+                remote_doc['document'] = json.loads(remote_doc['document'], strict=False)
         except JsonLdError as cause:
             raise cause
         except Exception as cause:
@@ -6687,7 +6687,7 @@ def load_html(input, url, profile, options):
                 {'type': types}, code='loading document failed')
         content = element[0].text
         try:
-            return json.loads(content)
+            return json.loads(content, strict=False)
         except Exception as cause:
             raise JsonLdError(
                 'Invalid JSON syntax.',
@@ -6703,7 +6703,7 @@ def load_html(input, url, profile, options):
         result = []
         for element in elements:
             try:
-                js = json.loads(element.text)
+                js = json.loads(element.text, strict=False)
                 if _is_array(js):
                     result.extend(js)
                 else:
@@ -6716,7 +6716,7 @@ def load_html(input, url, profile, options):
         return result
     elif elements:
         try:
-            return json.loads(elements[0].text)
+            return json.loads(elements[0].text, strict=False)
         except Exception as cause:
             raise JsonLdError(
                 'Invalid JSON syntax.',
