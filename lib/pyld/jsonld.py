@@ -6612,6 +6612,7 @@ def load_document(url,
             'jsonld.NullRemoteDocument',
             code='loading document failed')
     elif _is_string(remote_doc['document']):
+        _json_parse_strict = options.get("json_parse_strict", True)
         try:
             _content_type = _parse_content_type(remote_doc.get('contentType', ''))
             if (_content_type['contentType'] == 'text/html' or
@@ -6628,7 +6629,7 @@ def load_document(url,
                     options['base'] = html_options['base']
             else:
                 # parse JSON
-                remote_doc['document'] = json.loads(remote_doc['document'], strict=False)
+                remote_doc['document'] = json.loads(remote_doc['document'], strict=_json_parse_strict)
         except JsonLdError as cause:
             raise cause
         except Exception as cause:
@@ -6662,6 +6663,7 @@ def load_html(input, url, profile, options):
     document = lxml.html.fromstring(input)
     # potentially update options[:base]
     html_base = document.xpath('/html/head/base/@href')
+    _json_parse_strict = options.get("json_parse_strict", True)
     if html_base:
         # use either specified base, or document location
         effective_base = options.get('base', url)
@@ -6687,7 +6689,7 @@ def load_html(input, url, profile, options):
                 {'type': types}, code='loading document failed')
         content = element[0].text
         try:
-            return json.loads(content, strict=False)
+            return json.loads(content, strict=_json_parse_strict)
         except Exception as cause:
             raise JsonLdError(
                 'Invalid JSON syntax.',
@@ -6703,7 +6705,7 @@ def load_html(input, url, profile, options):
         result = []
         for element in elements:
             try:
-                js = json.loads(element.text, strict=False)
+                js = json.loads(element.text, strict=_json_parse_strict)
                 if _is_array(js):
                     result.extend(js)
                 else:
@@ -6716,7 +6718,7 @@ def load_html(input, url, profile, options):
         return result
     elif elements:
         try:
-            return json.loads(elements[0].text, strict=False)
+            return json.loads(elements[0].text, strict=_json_parse_strict)
         except Exception as cause:
             raise JsonLdError(
                 'Invalid JSON syntax.',
