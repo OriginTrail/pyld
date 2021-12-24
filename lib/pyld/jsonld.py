@@ -621,9 +621,10 @@ def parse_url(url):
     m = re.match(p, url)
     # remove default http and https ports
     g = list(m.groups())
-    if ((g[0] == 'https' and g[1].endswith(':443')) or
-            (g[0] == 'http' and g[1].endswith(':80'))):
-        g[1] = g[1][:g[1].rfind(':')]
+    if g[1] is not None:
+        if ((g[0] == 'https' and g[1].endswith(':443')) or
+                (g[0] == 'http' and g[1].endswith(':80'))):
+            g[1] = g[1][:g[1].rfind(':')]
     return ParsedUrl(*g)
 
 
@@ -3663,6 +3664,9 @@ class JsonLdProcessor(object):
                 object['datatype'] = datatype or XSD_BOOLEAN
             elif _is_double(value) or datatype == XSD_DOUBLE:
                 # canonical double representation
+                if isinstance(value, str):
+                    # e.g. {"@value":"2.0E0","@type":"http://www.w3.org/2001/XMLSchema#double"}
+                    value=float(value)
                 object['value'] = re.sub(
                     r'(\d)0*E\+?0*(\d)', r'\1E\2',
                     ('%1.15E' % value))
@@ -6551,6 +6555,21 @@ except ImportError:
     except (ImportError, SyntaxError):
         _default_document_loader = dummy_document_loader()
 
+
+#TODO: this should be a utility operation
+def _parse_content_type(ctype):
+    res = {}
+    parts = ctype.split(";")
+    if len(parts) < 1:
+        return res
+    res["contentType"] = parts[0]
+    for apart in parts[1:]:
+        a,b = apart.strip().split("=", 1)
+        res[a] = b
+    return res
+
+
+
 def load_document(url,
     options,
     base=None,
@@ -6580,19 +6599,24 @@ def load_document(url,
 
     if 'headers' not in options:
         options['headers'] = headers
+    #Add profile to options for the loader to check on
+    if 'profile' not in options:
+        options['profile']=profile
     remote_doc = options['documentLoader'](url, options)
     if base:
         remote_doc['documentUrl'] = base
 
     if remote_doc['document'] is None:
         raise JsonLdError(
-            'No remote document found at the given URL.',
+            'No remote document found at the given URL: '+url,
             'jsonld.NullRemoteDocument',
             code='loading document failed')
     elif _is_string(remote_doc['document']):
+        _json_parse_strict = options.get("json_parse_strict", True)
         try:
-            if (remote_doc['contentType'] == 'text/html' or
-                remote_doc['contentType'] == 'application/xhtml+xml'):
+            _content_type = _parse_content_type(remote_doc.get('contentType', ''))
+            if (_content_type['contentType'] == 'text/html' or
+                _content_type['contentType'] == 'application/xhtml+xml'):
                 # extract JSON from HTML
                 html_options = options.copy()
                 remote_doc['document'] = load_html(remote_doc['document'],
@@ -6605,7 +6629,7 @@ def load_document(url,
                     options['base'] = html_options['base']
             else:
                 # parse JSON
-                remote_doc['document'] = json.loads(remote_doc['document'])
+                remote_doc['document'] = json.loads(remote_doc['document'], strict=_json_parse_strict)
         except JsonLdError as cause:
             raise cause
         except Exception as cause:
@@ -6616,6 +6640,7 @@ def load_document(url,
                 cause=cause)
 
     return remote_doc
+
 
 def load_html(input, url, profile, options):
     """
@@ -6638,6 +6663,7 @@ def load_html(input, url, profile, options):
     document = lxml.html.fromstring(input)
     # potentially update options[:base]
     html_base = document.xpath('/html/head/base/@href')
+    _json_parse_strict = options.get("json_parse_strict", True)
     if html_base:
         # use either specified base, or document location
         effective_base = options.get('base', url)
@@ -6663,7 +6689,7 @@ def load_html(input, url, profile, options):
                 {'type': types}, code='loading document failed')
         content = element[0].text
         try:
-            return json.loads(content)
+            return json.loads(content, strict=_json_parse_strict)
         except Exception as cause:
             raise JsonLdError(
                 'Invalid JSON syntax.',
@@ -6679,7 +6705,7 @@ def load_html(input, url, profile, options):
         result = []
         for element in elements:
             try:
-                js = json.loads(element.text)
+                js = json.loads(element.text, strict=_json_parse_strict)
                 if _is_array(js):
                     result.extend(js)
                 else:
@@ -6692,7 +6718,7 @@ def load_html(input, url, profile, options):
         return result
     elif elements:
         try:
-            return json.loads(elements[0].text)
+            return json.loads(elements[0].text, strict=_json_parse_strict)
         except Exception as cause:
             raise JsonLdError(
                 'Invalid JSON syntax.',

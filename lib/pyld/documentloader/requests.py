@@ -10,21 +10,20 @@ Remote document loader using Requests.
 .. moduleauthor:: Olaf Conradi <olaf@conradi.org>
 """
 import string
+import re
 import urllib.parse as urllib_parse
+from json import JSONDecodeError
 
-from pyld.jsonld import (JsonLdError, parse_link_header, LINK_HEADER_REL)
+from pyld.jsonld import (JsonLdError, parse_link_header, prepend_base, LINK_HEADER_REL)
 
 
 def requests_document_loader(secure=False, **kwargs):
     """
     Create a Requests document loader.
-
     Can be used to setup extra Requests args such as verify, cert, timeout,
     or others.
-
     :param secure: require all requests to use HTTPS (default: False).
     :param **kwargs: extra keyword args for Requests get() call.
-
     :return: the RemoteDocument loader function.
     """
     import requests
@@ -32,18 +31,16 @@ def requests_document_loader(secure=False, **kwargs):
     def loader(url, options={}):
         """
         Retrieves JSON-LD at the given URL.
-
         :param url: the URL to retrieve.
-
         :return: the RemoteDocument.
         """
         try:
             # validate URL
             pieces = urllib_parse.urlparse(url)
             if (not all([pieces.scheme, pieces.netloc]) or
-                pieces.scheme not in ['http', 'https'] or
-                set(pieces.netloc) > set(
-                    string.ascii_letters + string.digits + '-.:')):
+                    pieces.scheme not in ['http', 'https'] or
+                    set(pieces.netloc) > set(
+                        string.ascii_letters + string.digits + '-.:')):
                 raise JsonLdError(
                     'URL could not be dereferenced; only "http" and "https" '
                     'URLs are supported.',
@@ -69,7 +66,8 @@ def requests_document_loader(secure=False, **kwargs):
                 'contentType': content_type,
                 'contextUrl': None,
                 'documentUrl': response.url,
-                'document': response.json()
+                'document': None,    #document is parsed later
+                'response': None,    #Include the response for history/performance review
             }
             link_header = response.headers.get('link')
             if link_header:
@@ -77,22 +75,49 @@ def requests_document_loader(secure=False, **kwargs):
                     LINK_HEADER_REL)
                 # only 1 related link header permitted
                 if linked_context and content_type != 'application/ld+json':
-                  if isinstance(linked_context, list):
-                      raise JsonLdError(
-                          'URL could not be dereferenced, '
-                          'it has more than one '
-                          'associated HTTP Link Header.',
-                          'jsonld.LoadDocumentError',
-                          {'url': url},
-                          code='multiple context link headers')
-                  doc['contextUrl'] = linked_context['target']
+                    if isinstance(linked_context, list):
+                        raise JsonLdError(
+                            'URL could not be dereferenced, '
+                            'it has more than one '
+                            'associated HTTP Link Header.',
+                            'jsonld.LoadDocumentError',
+                            {'url': url},
+                            code='multiple context link headers')
+                    doc['contextUrl'] = linked_context['target']
                 linked_alternate = parse_link_header(link_header).get('alternate')
+                # Linked alternate may be a list....
+                # A. type == application/ld+json, no profile
+                # OR
+                # B. type == application/ld+json, profile == supplied profile                    
                 # if not JSON-LD, alternate may point there
-                if (linked_alternate and
-                        linked_alternate.get('type') == 'application/ld+json' and
+                the_linked_alternate = None
+                if linked_alternate:
+                    _profile = options.get("profile", None)
+                    if isinstance(linked_alternate, list):
+                        for candidate in linked_alternate:
+                            if candidate.get('type') == 'application/ld+json':
+                                if _profile is not None:
+                                    if candidate.get('profile') == _profile:
+                                        the_linked_alternate = candidate
+                                        break
+                                else:
+                                    the_linked_alternate = candidate
+                                    break
+                    else:
+                        the_linked_alternate = linked_alternate
+                if (the_linked_alternate and
+                        the_linked_alternate.get('type') == 'application/ld+json' and
                         not re.match(r'^application\/(\w*\+)?json$', content_type)):
                     doc['contentType'] = 'application/ld+json'
-                    doc['documentUrl'] = jsonld.prepend_base(url, linked_alternate['target'])
+                    doc['documentUrl'] = prepend_base(url, the_linked_alternate['target'])
+                    # recurse into loader with the new URL
+                    return loader(doc['documentUrl'], options=options)
+            # parse the json response and return
+            # Do not parse JSON here. It needs to be done in load_document to handle the
+            # situation where JSON-LD needs to be extracted from a HTML response.
+            #doc['document'] = response.json()
+            doc['document'] = response.text
+            doc['response'] = response
             return doc
         except JsonLdError as e:
             raise e

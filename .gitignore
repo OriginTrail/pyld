@@ -14,3 +14,6 @@ lib/PyLD.egg-info
 profiler
 tests/test_caching.py
 tests/data/test_caching.json
+# os x
+.DS_Store
+eg_run.py
