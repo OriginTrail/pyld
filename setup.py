@@ -28,7 +28,7 @@ setup(
     long_description=long_description,
     author='Digital Bazaar',
     author_email='support@digitalbazaar.com',
-    url='https://github.com/digitalbazaar/pyld',
+    url='https://github.com/OriginTrail/pyld',
     packages=[
         'c14n',
         'pyld',
