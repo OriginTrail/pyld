@@ -22,7 +22,7 @@ with open('README.rst') as fp:
     long_description = fp.read()
 
 setup(
-    name='PyLD',
+    name='OT-PyLD',
     version=about['__version__'],
     description='Python implementation of the JSON-LD API',
     long_description=long_description,
